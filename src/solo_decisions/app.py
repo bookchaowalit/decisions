@@ -670,12 +670,20 @@ def create_app(connect: Callable[[], psycopg.Connection], verifier: TokenVerifie
 
     @app.get("/v1/decisions/{decision_id}/events", response_model=EventList)
     def decision_events(decision_id: int, caller: Caller,
-                        limit: Annotated[int, Query(ge=1, le=500)] = 100) -> EventList:
+                        limit: Annotated[int, Query(ge=1, le=500)] = 100,
+                        order: Literal["desc", "asc"] = "desc",
+                        after_id: Annotated[int | None, Query(ge=0)] = None) -> EventList:
+        """Newest first by default; ``order=asc`` with ``after_id`` pages through the whole history."""
         allow(caller, "decisions.decision:read", str(decision_id), not_found=True)
         with bound(caller) as conn:
             load(conn, decision_id)
-            rows = conn.execute(f"SELECT {EVENT_COLUMNS} FROM decisions.events WHERE decision_id = %s"
-                                " ORDER BY created_at DESC, id DESC LIMIT %s", (decision_id, limit)).fetchall()
+            if order == "asc":
+                rows = conn.execute(f"SELECT {EVENT_COLUMNS} FROM decisions.events WHERE decision_id = %s"
+                                    " AND id > %s ORDER BY id LIMIT %s",
+                                    (decision_id, after_id or 0, limit)).fetchall()
+            else:
+                rows = conn.execute(f"SELECT {EVENT_COLUMNS} FROM decisions.events WHERE decision_id = %s"
+                                    " ORDER BY created_at DESC, id DESC LIMIT %s", (decision_id, limit)).fetchall()
         return EventList(items=[DecisionEvent(**row) for row in rows])
 
     @app.get("/v1/decision-events", response_model=EventList)
