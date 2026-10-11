@@ -1,0 +1,8 @@
+system_id: bookchaowalit/private/solo-decisions
+prefix: CARD
+brand: "SOLO DECISIONS"
+subtitle: "Cell ของ decision record, event history และ scheduled review"
+footer: "solo-decisions — Product Card"
+color: "#8d5a97"
+audience: internal
+tier: L0
