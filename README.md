@@ -1,4 +1,4 @@
-# solo-decisions
+# decisions
 
 The decisions cell: decision records, their event history, and scheduled
 reviews. It keeps its own Neon database and reuses
