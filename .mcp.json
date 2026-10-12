@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "decisions": {
+      "command": ".venv/bin/decisions-mcp",
+      "args": []
+    }
+  }
+}

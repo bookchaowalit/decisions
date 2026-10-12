@@ -12,12 +12,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pgserver>=0.1.4"]
+dev = ["pytest>=8", "pgserver>=0.1.4", "mcp>=2.3,<3"]
+mcp = ["mcp>=2.3,<3"]  # decisions-mcp (solo_decisions.mcp_server); not needed by the API image
 
 [project.scripts]
 decisions-api = "solo_decisions.app:main"
 decisions-publish = "solo_decisions.publisher:main"
 decisions-db = "solo_decisions.db:main"
+decisions-mcp = "solo_decisions.mcp_server:main"
 
 [build-system]
 requires = ["setuptools>=69"]
