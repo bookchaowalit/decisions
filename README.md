@@ -73,13 +73,13 @@ Railway variables (never in the repository): `DECISIONS_DB_MODE=hosted`,
 `solo_decisions.mcp_server` is this cell's MCP server (stdio). Every tool calls the cell's HTTP API with the caller's own
 token, so MCP has exactly the authorization the API has: it never touches the database, and no tool accepts
 an actor, workspace, delegation or token argument (strict models reject unknown arguments before any HTTP
-call). Errors reach the client as the status code plus the API's short error code only.
+call). Errors reach the client as a fixed message from the HTTP status only (for example `403: forbidden`), never upstream text; tokens with whitespace or control characters are refused.
 
 - Tools: `decisions.decision.{list,get,stats,events}`, `decisions.event.list`, `decisions.review.{list,get}`.
-- Write tools: `decisions.decision.create` (starts proposed and pending approval; cannot approve or act), `decisions.decision.note` (non-state history notes only) and `decisions.review.update`. Set `EMPIRE_MCP_READONLY=1` to register only the read tools.
-- URL: `EMPIRE_DECISIONS_API` (env, else the owner-only `~/.config/empire-platform/client.env`); https only, http only on loopback.
+- Write tools: `decisions.decision.create` (optional `idempotency_key`; starts proposed and pending approval; cannot approve or act), `decisions.decision.note` (non-state history notes only) and `decisions.review.update`. Set `EMPIRE_MCP_READONLY=1` to register only the read tools.
+- URL: `EMPIRE_DECISIONS_API` (env, else the owner-only `~/.config/empire-platform/client.env`); https only (http only on loopback), no credentials, query or fragment.
 - Token, first match wins: `EMPIRE_TOKEN`, `EMPIRE_TOKEN_FILE` (mode 600), then the automation token named by
-  `EMPIRE_MCP_AUTOMATION` (default `owner-cli`) from `EMPIRE_AUTOMATION_TOKEN_<NAME>` or
+  `EMPIRE_MCP_AUTOMATION` (default `owner-cli`, lower-case letters, digits and hyphens) from `EMPIRE_AUTOMATION_TOKEN_<NAME>` or
   `~/.config/empire-platform/tokens/<name>.jwt`.
 - Run: `uv pip install --python .venv/bin/python -e ".[mcp]"`, then `.venv/bin/decisions-mcp` (see `.mcp.json`).
 - Tests: `.venv/bin/pytest tests/test_mcp.py` (fake HTTP transport; no database, no network).
