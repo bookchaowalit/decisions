@@ -8,9 +8,9 @@ HTTP with the caller's own token.
 
 | | |
 |---|---|
-| API | Railway project `solo-decisions`, service `decisions-api` (Serverless: sleeps when idle) |
+| API | Railway project `decisions`, service `decisions-api` (Serverless: sleeps when idle) |
 | Outbox sweep | service `decisions-publisher`, cron `*/15 * * * *` |
-| Data | Neon project `solo-decisions`, database `decisions` |
+| Data | Neon project `decisions`, database `decisions` |
 | Registry | solo-empire `repository-catalog/registries/online-systems.yaml` (`decisions`) |
 
 ## How a request works
