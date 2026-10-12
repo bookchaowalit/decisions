@@ -1,6 +1,6 @@
 import { defineRailway, project, service } from "railway/iac";
 
-// solo-decisions: the decisions cell. Variables stay unmanaged (secrets live in Railway only).
+// decisions: the decisions cell. Variables stay unmanaged (secrets live in Railway only).
 // decisions-api sleeps when idle (Railway Serverless) and wakes on the next request;
 // decisions-publisher is a cron sweep of the outbox that exits after each run.
 export default defineRailway(() => {
@@ -14,7 +14,7 @@ export default defineRailway(() => {
     deploy: { cronSchedule: "*/15 * * * *", restartPolicyType: "NEVER" },
   });
 
-  return project("solo-decisions", {
+  return project("decisions", {
     variables: { managed: false },
     resources: [api, publisher],
   });
