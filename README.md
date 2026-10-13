@@ -1,5 +1,4 @@
-# decisions
-
+# life-decisions-api
 The decisions cell: decision records, their event history, and scheduled
 reviews. It keeps its own Neon database and reuses
 [empire-platform](https://github.com/bookchaowalit/empire-platform) for
@@ -8,9 +7,9 @@ HTTP with the caller's own token.
 
 | | |
 |---|---|
-| API | Railway project `decisions`, service `decisions-api` (Serverless: sleeps when idle) |
+| API | Railway project `life-decisions-api`, service `decisions-api` (Serverless: sleeps when idle) |
 | Outbox sweep | service `decisions-publisher`, cron `*/15 * * * *` |
-| Data | Neon project `decisions`, database `decisions` |
+| Data | Neon project `life-decisions-api`, database `decisions` |
 | Registry | solo-empire `repository-catalog/registries/online-systems.yaml` (`decisions`) |
 
 ## How a request works
