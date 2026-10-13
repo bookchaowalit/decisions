@@ -1,7 +1,7 @@
 # life-decisions-api
 The decisions cell: decision records, their event history, and scheduled
 reviews. It keeps its own Neon database and reuses
-[empire-platform](https://github.com/bookchaowalit/empire-platform) for
+[empire-platform](https://github.com/bookchaowalit/platform-empire) for
 identity, authorization, execution and audit records, and the graph, all over
 HTTP with the caller's own token.
 
