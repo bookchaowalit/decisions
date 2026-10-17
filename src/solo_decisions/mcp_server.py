@@ -49,15 +49,22 @@ class ConfigError(RuntimeError):
 
 # --- configuration (vendored from solo-cell-kit cellkit/mcp.py; do not import across repos) -----------
 
+
 def client_file(environ: Any) -> dict[str, str]:
     override = (environ.get("EMPIRE_CLIENT_CONFIG") or "").strip()
-    path = Path(override).expanduser() if override else Path.home() / ".config" / "empire-platform" / "client.env"
+    path = (
+        Path(override).expanduser()
+        if override
+        else Path.home() / ".config" / "empire-platform" / "client.env"
+    )
     try:
         mode = path.stat().st_mode
     except FileNotFoundError:
         return {}
     if mode & 0o077:
-        raise ConfigError(f"refusing client config {path}: group/world accessible; run chmod 600")
+        raise ConfigError(
+            f"refusing client config {path}: group/world accessible; run chmod 600"
+        )
     values: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
@@ -75,10 +82,21 @@ def api_url(key: str, environ: Any = None) -> str:
         raise ConfigError(f"the API is not configured: set {key} (env or client.env)")
     parts = urllib.parse.urlsplit(value)
     host = (parts.hostname or "").lower()
-    if parts.username is not None or parts.password is not None or parts.query or parts.fragment or "?" in value or "#" in value:
+    if (
+        parts.username is not None
+        or parts.password is not None
+        or parts.query
+        or parts.fragment
+        or "?" in value
+        or "#" in value
+    ):
         raise ConfigError(f"{key} must not carry credentials, a query or a fragment")
-    if not (parts.scheme == "https" and host) and not (parts.scheme == "http" and host in LOOPBACK):
-        raise ConfigError(f"{key} must be https (http only for 127.0.0.1, ::1 or localhost)")
+    if not (parts.scheme == "https" and host) and not (
+        parts.scheme == "http" and host in LOOPBACK
+    ):
+        raise ConfigError(
+            f"{key} must be https (http only for 127.0.0.1, ::1 or localhost)"
+        )
     return value
 
 
@@ -86,23 +104,40 @@ def clean_token(value: str) -> str:
     """The token without surrounding whitespace; any inner whitespace or control character is refused."""
     token = value.strip()
     if not token or any(ch.isspace() or ord(ch) < 32 or ord(ch) == 127 for ch in token):
-        raise ConfigError("the token has an unexpected format") from None  # never echo it
+        raise ConfigError(
+            "the token has an unexpected format"
+        ) from None  # never echo it
     return token
 
 
 AUTOMATION = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
-FORBIDDEN_ARGUMENTS = frozenset({"actor", "actor_id", "workspace", "workspace_id", "tenant", "tenant_id", "delegation",
-                                 "token", "authorization", "owner_id"})
+FORBIDDEN_ARGUMENTS = frozenset(
+    {
+        "actor",
+        "actor_id",
+        "workspace",
+        "workspace_id",
+        "tenant",
+        "tenant_id",
+        "delegation",
+        "token",
+        "authorization",
+        "owner_id",
+    }
+)
 IDEMPOTENCY_KEY = r"^[A-Za-z0-9._:-]{8,128}$"
 
 
 def read_owner_file(path: Path, what: str) -> str:
     if path.stat().st_mode & 0o077:
-        raise ConfigError(f"{what} file {path} must be readable by its owner only (chmod 600)")
+        raise ConfigError(
+            f"{what} file {path} must be readable by its owner only (chmod 600)"
+        )
     return path.read_text(encoding="utf-8").strip()
 
 
 # --- the server -----------------------------------------------------------------------------------
+
 
 class StrictMCPServer(MCPServer):
     """MCPServer that validates arguments against a strict model before any tool runs."""
@@ -116,10 +151,15 @@ class StrictMCPServer(MCPServer):
         for tool in tools:
             model = self.argument_models.get(tool.name)
             if model is not None:
-                tool.input_schema = {**model.model_json_schema(), "additionalProperties": False}
+                tool.input_schema = {
+                    **model.model_json_schema(),
+                    "additionalProperties": False,
+                }
         return tools
 
-    async def call_tool(self, name: str, arguments: dict[str, Any], context: Any = None):  # type: ignore[override]
+    async def call_tool(
+        self, name: str, arguments: dict[str, Any], context: Any = None
+    ):  # type: ignore[override]
         model = self.argument_models.get(name)
         if model is None:
             raise ToolFailed("unknown_tool")
@@ -129,12 +169,24 @@ class StrictMCPServer(MCPServer):
         except ValidationError:
             valid = False  # raised below, outside the handler: no cause or context keeps the rejected input
         if not valid:
-            raise ToolFailed("invalid_arguments") from None  # never names the argument or echoes its value
+            raise ToolFailed(
+                "invalid_arguments"
+            ) from None  # never names the argument or echoes its value
         return await super().call_tool(name, arguments, context)
 
 
-REASONS = {400: "invalid", 401: "unauthorized", 403: "forbidden", 404: "not_found", 405: "invalid", 409: "conflict",
-           410: "not_found", 413: "invalid", 422: "invalid", 429: "rate_limited"}
+REASONS = {
+    400: "invalid",
+    401: "unauthorized",
+    403: "forbidden",
+    404: "not_found",
+    405: "invalid",
+    409: "conflict",
+    410: "not_found",
+    413: "invalid",
+    422: "invalid",
+    429: "rate_limited",
+}
 
 
 def failure(status: int) -> str:
@@ -145,54 +197,99 @@ def failure(status: int) -> str:
 class Toolbox:
     """Registers tools on a strict server. Every tool is one HTTP call with the caller's own bearer."""
 
-    def __init__(self, name: str, instructions: str, client: httpx.Client, token: Callable[[], str], *,
-                 read_only: bool = False, empire_headers: bool = False, server: StrictMCPServer | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        instructions: str,
+        client: httpx.Client,
+        token: Callable[[], str],
+        *,
+        read_only: bool = False,
+        empire_headers: bool = False,
+        server: StrictMCPServer | None = None,
+    ) -> None:
         self.server = server or StrictMCPServer(name, instructions=instructions)
-        self.client, self.token, self.read_only, self.empire_headers = client, token, read_only, empire_headers
+        self.client, self.token, self.read_only, self.empire_headers = (
+            client,
+            token,
+            read_only,
+            empire_headers,
+        )
 
-    def call(self, method: str, path: str, *, params: dict[str, Any] | None = None, body: Any = None,
-             idempotency_key: str | None = None) -> Any:
+    def call(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        body: Any = None,
+        idempotency_key: str | None = None,
+    ) -> Any:
         try:
             bearer = clean_token(self.token())
         except ConfigError:
-            raise ToolFailed("401: unauthorized") from None  # no token, or one with an unexpected format
+            raise ToolFailed(
+                "401: unauthorized"
+            ) from None  # no token, or one with an unexpected format
         headers = {"Authorization": f"Bearer {bearer}"}
         if self.empire_headers:
-            headers |= {"X-Empire-Channel": "mcp", "X-Correlation-Id": f"mcp-{uuid.uuid4().hex}"}
+            headers |= {
+                "X-Empire-Channel": "mcp",
+                "X-Correlation-Id": f"mcp-{uuid.uuid4().hex}",
+            }
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key
         try:
-            response = self.client.request(method, path, headers=headers, params=params, json=body)
+            response = self.client.request(
+                method, path, headers=headers, params=params, json=body
+            )
         except httpx.HTTPError:
-            raise ToolFailed("503: unavailable") from None  # never echo the transport error
+            raise ToolFailed(
+                "503: unavailable"
+            ) from None  # never echo the transport error
         if response.status_code >= 400:
             raise ToolFailed(failure(response.status_code))
         return response.json() if response.content else {"ok": True}
 
-    def tool(self, name: str, model: type[Strict], description: str, *, write: bool = False):
+    def tool(
+        self, name: str, model: type[Strict], description: str, *, write: bool = False
+    ):
         def register(handler: Callable[[Any], Any]) -> Callable[[Any], Any]:
             banned = FORBIDDEN_ARGUMENTS & set(model.model_fields)
             if banned:
-                raise ValueError(f"{name}: identity arguments are not allowed: {sorted(banned)}")
+                raise ValueError(
+                    f"{name}: identity arguments are not allowed: {sorted(banned)}"
+                )
             if write and self.read_only:
                 return handler
 
             def function(**kwargs: Any) -> Any:
                 return handler(model.model_validate(kwargs))
 
-            params = [inspect.Parameter(field, inspect.Parameter.KEYWORD_ONLY,
-                                        default=inspect.Parameter.empty if info.is_required() else info.default,
-                                        annotation=info.annotation) for field, info in model.model_fields.items()]
+            params = [
+                inspect.Parameter(
+                    field,
+                    inspect.Parameter.KEYWORD_ONLY,
+                    default=inspect.Parameter.empty
+                    if info.is_required()
+                    else info.default,
+                    annotation=info.annotation,
+                )
+                for field, info in model.model_fields.items()
+            ]
             function.__signature__ = inspect.Signature(params)  # type: ignore[attr-defined]
             function.__annotations__ = {p.name: p.annotation for p in params}
             function.__name__ = name.replace(".", "_")
             self.server.argument_models[name] = model
             self.server.tool(name=name, description=description)(function)
             return handler
+
         return register
 
 
-def query(args: BaseModel, rename: dict[str, str] | None = None, drop: tuple[str, ...] = ()) -> dict[str, Any]:
+def query(
+    args: BaseModel, rename: dict[str, str] | None = None, drop: tuple[str, ...] = ()
+) -> dict[str, Any]:
     """The set arguments as query parameters (``rename`` maps argument names to the API's names)."""
     values = args.model_dump(mode="json", exclude_none=True, exclude=set(drop))
     return {(rename or {}).get(key, key): value for key, value in values.items()}
@@ -207,12 +304,32 @@ class Id(Strict):
 
 
 API_KEY = "EMPIRE_DECISIONS_API"
-DecisionStatus = Literal["draft", "proposed", "approved", "in_progress", "completed", "deferred", "rejected",
-                         "superseded"]
+DecisionStatus = Literal[
+    "draft",
+    "proposed",
+    "approved",
+    "in_progress",
+    "completed",
+    "deferred",
+    "rejected",
+    "superseded",
+]
 ApprovalStatus = Literal["pending", "approved", "rejected", "not_required"]
-ActionStatus = Literal["none", "pending_approval", "queued", "executed", "blocked", "failed"]
-EventType = Literal["created", "refreshed", "approved", "rejected", "deferred", "completed", "signal_cleared",
-                    "review_task_created", "reviewed", "updated"]
+ActionStatus = Literal[
+    "none", "pending_approval", "queued", "executed", "blocked", "failed"
+]
+EventType = Literal[
+    "created",
+    "refreshed",
+    "approved",
+    "rejected",
+    "deferred",
+    "completed",
+    "signal_cleared",
+    "review_task_created",
+    "reviewed",
+    "updated",
+]
 ReviewStatus = Literal["pending", "completed", "skipped"]
 
 
@@ -285,12 +402,29 @@ class ReviewUpdate(Strict):
     notes: str | None = Field(default=None, max_length=8000)
 
 
-def build_server(client: httpx.Client, token: Callable[[], str], *, read_only: bool = False,
-                 server: StrictMCPServer | None = None) -> Toolbox:
-    box = Toolbox("decisions", "Solo Empire decisions cell. Every tool calls the cell API as the authenticated "
-                  "caller only.", client, token, read_only=read_only, empire_headers=True, server=server)
+def build_server(
+    client: httpx.Client,
+    token: Callable[[], str],
+    *,
+    read_only: bool = False,
+    server: StrictMCPServer | None = None,
+) -> Toolbox:
+    box = Toolbox(
+        "decisions",
+        "Solo Empire decisions cell. Every tool calls the cell API as the authenticated "
+        "caller only.",
+        client,
+        token,
+        read_only=read_only,
+        empire_headers=True,
+        server=server,
+    )
 
-    @box.tool("decisions.decision.list", DecisionList, "List decisions (newest first), filtered by status, domain, approval or review date.")
+    @box.tool(
+        "decisions.decision.list",
+        DecisionList,
+        "List decisions (newest first), filtered by status, domain, approval or review date.",
+    )
     def decision_list(a: DecisionList) -> Any:
         return box.call("GET", "/v1/decisions", params=query(a))
 
@@ -298,19 +432,37 @@ def build_server(client: httpx.Client, token: Callable[[], str], *, read_only: b
     def decision_get(a: Id) -> Any:
         return box.call("GET", f"/v1/decisions/{a.id}")
 
-    @box.tool("decisions.decision.stats", DecisionStats, "Count decisions grouped by status, domain, approval or action status.")
+    @box.tool(
+        "decisions.decision.stats",
+        DecisionStats,
+        "Count decisions grouped by status, domain, approval or action status.",
+    )
     def decision_stats(a: DecisionStats) -> Any:
         return box.call("GET", "/v1/decisions/stats", params=query(a))
 
-    @box.tool("decisions.decision.events", DecisionEvents, "The history of one decision (newest first; asc with after_id pages through it).")
+    @box.tool(
+        "decisions.decision.events",
+        DecisionEvents,
+        "The history of one decision (newest first; asc with after_id pages through it).",
+    )
     def decision_events(a: DecisionEvents) -> Any:
-        return box.call("GET", f"/v1/decisions/{a.id}/events", params=query(a, drop=("id",)))
+        return box.call(
+            "GET", f"/v1/decisions/{a.id}/events", params=query(a, drop=("id",))
+        )
 
-    @box.tool("decisions.event.list", AllEvents, "Recent decision events across all decisions.")
+    @box.tool(
+        "decisions.event.list",
+        AllEvents,
+        "Recent decision events across all decisions.",
+    )
     def event_list(a: AllEvents) -> Any:
         return box.call("GET", "/v1/decision-events", params=query(a))
 
-    @box.tool("decisions.review.list", ReviewList, "List decision reviews, by status, decision or due date.")
+    @box.tool(
+        "decisions.review.list",
+        ReviewList,
+        "List decision reviews, by status, decision or due date.",
+    )
     def review_list(a: ReviewList) -> Any:
         return box.call("GET", "/v1/decision-reviews", params=query(a))
 
@@ -318,21 +470,47 @@ def build_server(client: httpx.Client, token: Callable[[], str], *, read_only: b
     def review_get(a: Id) -> Any:
         return box.call("GET", f"/v1/decision-reviews/{a.id}")
 
-    @box.tool("decisions.decision.create", DecisionCreate,
-              "Propose a decision. It starts proposed and pending approval; this tool cannot approve or act on it.", write=True)
+    @box.tool(
+        "decisions.decision.create",
+        DecisionCreate,
+        "Propose a decision. It starts proposed and pending approval; this tool cannot approve or act on it.",
+        write=True,
+    )
     def decision_create(a: DecisionCreate) -> Any:
-        return box.call("POST", "/v1/decisions", body=a.model_dump(mode="json", exclude_none=True, exclude={"idempotency_key"}),
-                        idempotency_key=a.idempotency_key or new_key())
+        return box.call(
+            "POST",
+            "/v1/decisions",
+            body=a.model_dump(
+                mode="json", exclude_none=True, exclude={"idempotency_key"}
+            ),
+            idempotency_key=a.idempotency_key or new_key(),
+        )
 
-    @box.tool("decisions.decision.note", DecisionNote,
-              "Add a history note (signal_cleared, review_task_created or reviewed) to a decision.", write=True)
+    @box.tool(
+        "decisions.decision.note",
+        DecisionNote,
+        "Add a history note (signal_cleared, review_task_created or reviewed) to a decision.",
+        write=True,
+    )
     def decision_note(a: DecisionNote) -> Any:
-        return box.call("POST", f"/v1/decisions/{a.id}/events", body=a.model_dump(mode="json", exclude_none=True, exclude={"id"}))
+        return box.call(
+            "POST",
+            f"/v1/decisions/{a.id}/events",
+            body=a.model_dump(mode="json", exclude_none=True, exclude={"id"}),
+        )
 
-    @box.tool("decisions.review.update", ReviewUpdate,
-              "Change a review's status, outcome or notes; pass expected_version to refuse a stale write.", write=True)
+    @box.tool(
+        "decisions.review.update",
+        ReviewUpdate,
+        "Change a review's status, outcome or notes; pass expected_version to refuse a stale write.",
+        write=True,
+    )
     def review_update(a: ReviewUpdate) -> Any:
-        return box.call("PATCH", f"/v1/decision-reviews/{a.id}", body=a.model_dump(mode="json", exclude_none=True, exclude={"id"}))
+        return box.call(
+            "PATCH",
+            f"/v1/decision-reviews/{a.id}",
+            body=a.model_dump(mode="json", exclude_none=True, exclude={"id"}),
+        )
 
     return box
 
@@ -343,7 +521,9 @@ def bearer(environ: Any = None) -> str:
     if environ.get("EMPIRE_TOKEN"):
         return clean_token(environ["EMPIRE_TOKEN"])
     if environ.get("EMPIRE_TOKEN_FILE"):
-        return clean_token(read_owner_file(Path(environ["EMPIRE_TOKEN_FILE"]).expanduser(), "token"))
+        return clean_token(
+            read_owner_file(Path(environ["EMPIRE_TOKEN_FILE"]).expanduser(), "token")
+        )
     name = environ.get("EMPIRE_MCP_AUTOMATION") or "owner-mcp"
     if not AUTOMATION.fullmatch(name):
         raise ConfigError("EMPIRE_MCP_AUTOMATION must match ^[a-z0-9][a-z0-9-]{0,62}$")
@@ -362,7 +542,9 @@ def main() -> None:
     except ConfigError as exc:
         raise SystemExit(str(exc)) from None
     client = httpx.Client(base_url=url, timeout=30, follow_redirects=False)
-    build_server(client, bearer, read_only=os.environ.get("EMPIRE_MCP_READONLY") == "1").server.run("stdio")
+    build_server(
+        client, bearer, read_only=os.environ.get("EMPIRE_MCP_READONLY") == "1"
+    ).server.run("stdio")
 
 
 if __name__ == "__main__":
