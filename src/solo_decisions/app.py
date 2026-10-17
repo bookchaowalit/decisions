@@ -469,6 +469,7 @@ def create_app(
                     )
                 # Rows written before the execution existed carry a local marker; bind them now.
                 for table in ("events", "outbox"):
+                    # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- table/column names are module constants or spec-validated identifiers; values are bound as %s parameters
                     conn.execute(
                         f"UPDATE decisions.{table} SET execution_id = %s WHERE execution_id = %s",
                         (execution, work.marker),
@@ -523,6 +524,7 @@ def create_app(
     def load(
         conn: psycopg.Connection, decision_id: int, *, lock: bool = False
     ) -> dict[str, Any]:
+        # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- table/column names are module constants or spec-validated identifiers; values are bound as %s parameters
         row = conn.execute(
             f"SELECT {COLUMNS} FROM decisions.records WHERE id = %s{' FOR UPDATE' if lock else ''}",
             (decision_id,),
@@ -863,6 +865,7 @@ def create_app(
     ) -> Stats:
         allow(caller, "decisions.decision:read")
         with bound(caller) as conn:
+            # nosemgrep: python.lang.security.audit.formatted-sql-query.formatted-sql-query, python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- group_by is checked against a fixed allow-list before use; values are %s parameters
             rows = conn.execute(
                 f"SELECT {group_by} AS key, count(*) AS n FROM decisions.records GROUP BY 1"
             ).fetchall()
@@ -872,6 +875,7 @@ def create_app(
     def by_dedupe(key: str, caller: Caller) -> Decision:
         allow(caller, "decisions.decision:read", not_found=True)
         with bound(caller) as conn:
+            # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- table/column names are module constants or spec-validated identifiers; values are bound as %s parameters
             row = conn.execute(
                 f"SELECT {COLUMNS} FROM decisions.records WHERE dedupe_key = %s", (key,)
             ).fetchone()
@@ -883,6 +887,7 @@ def create_app(
     def by_legacy(legacy_id: int, caller: Caller) -> Decision:
         allow(caller, "decisions.decision:read", not_found=True)
         with bound(caller) as conn:
+            # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- table/column names are module constants or spec-validated identifiers; values are bound as %s parameters
             row = conn.execute(
                 f"SELECT {COLUMNS} FROM decisions.records WHERE legacy_id = %s",
                 (legacy_id,),
@@ -910,6 +915,7 @@ def create_app(
 
         def op(work: Work) -> Plan:
             if reserved is not None:
+                # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- table/column names are module constants or spec-validated identifiers; values are bound as %s parameters
                 existing = work.conn.execute(
                     f"SELECT {COLUMNS} FROM decisions.records WHERE id = %s",
                     (reserved,),
@@ -943,6 +949,7 @@ def create_app(
         names = body.model_fields_set | {"title", "decision", "dedupe_key"}
 
         def op(work: Work) -> Plan:
+            # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- table/column names are module constants or spec-validated identifiers; values are bound as %s parameters
             before = work.conn.execute(
                 f"SELECT {COLUMNS} FROM decisions.records WHERE dedupe_key = %s FOR UPDATE",
                 (key,),
@@ -1169,6 +1176,7 @@ def create_app(
     def get_review(review_id: int, caller: Caller) -> Review:
         allow(caller, "decisions.decision:read", f"review:{review_id}", not_found=True)
         with bound(caller) as conn:
+            # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- table/column names are module constants or spec-validated identifiers; values are bound as %s parameters
             row = conn.execute(
                 f"SELECT {REVIEW_COLUMNS} FROM decisions.reviews WHERE id = %s",
                 (review_id,),
@@ -1249,6 +1257,7 @@ def create_app(
         data = review_values(body, body.model_fields_set)
 
         def op(work: Work) -> Plan:
+            # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query -- table/column names are module constants or spec-validated identifiers; values are bound as %s parameters
             before = work.conn.execute(
                 f"SELECT {REVIEW_COLUMNS} FROM decisions.reviews WHERE id = %s FOR UPDATE",
                 (review_id,),
