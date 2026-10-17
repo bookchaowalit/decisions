@@ -23,7 +23,7 @@ import re
 import urllib.parse
 import uuid
 from collections.abc import Callable
-from datetime import date, datetime  # noqa: F401 - used by the tool models
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Literal
 

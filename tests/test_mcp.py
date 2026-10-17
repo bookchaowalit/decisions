@@ -75,7 +75,7 @@ def test_note_cannot_change_state_and_create_cannot_approve():
     with pytest.raises(Exception, match="invalid_arguments"):
         call(srv, "decisions.decision.note", {"id": 1, "event_type": "approved"})
     for field in ("approval_status", "status", "action_status", "approval_required"):
-        with pytest.raises(Exception, match=f"invalid_arguments"):
+        with pytest.raises(Exception, match="invalid_arguments"):
             call(
                 srv,
                 "decisions.decision.create",
@@ -233,7 +233,7 @@ def test_errors_are_a_fixed_message_from_the_status_only(status, message):
         },
         "error": {"code": "leak-code", "message": "do-not-leak"},
     }
-    name = sorted(READS)[0]
+    name = min(READS)
     with pytest.raises(Exception) as caught:
         call(server(Fake(status=status, body=secret)), name, ARGS.get(name, {}))
     assert str(caught.value).endswith(": " + message)
@@ -241,7 +241,7 @@ def test_errors_are_a_fixed_message_from_the_status_only(status, message):
 
 
 def test_token_with_whitespace_or_control_characters_is_refused_without_echo():
-    name = sorted(READS)[0]
+    name = min(READS)
     for bad in (
         "two words-abcdefgh",
         "line\nbreak-abcdefgh",
@@ -294,7 +294,7 @@ def test_transport_failure_does_not_echo_the_error():
         lambda: "tok-123",
     ).server
     with pytest.raises(Exception) as caught:
-        call(srv, sorted(READS)[0], ARGS.get(sorted(READS)[0], {}))
+        call(srv, min(READS), ARGS.get(min(READS), {}))
     assert "tok-123" not in str(caught.value) and "503" in str(caught.value)
 
 

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import uuid
 
+import psycopg
 import pytest
-
 from conftest import OWNER_ACTIONS
+
 from solo_decisions.platform import PlatformUnavailable
 from solo_decisions.publisher import publish_pending
 
@@ -273,7 +274,7 @@ def test_runtime_role_sees_nothing_without_a_workspace(cluster, client, token, o
     create(client, token(*owner))
     with cluster.connect("decisions_api") as conn:
         assert conn.execute("SELECT count(*) FROM decisions.records").fetchone()[0] == 0
-        with pytest.raises(Exception):
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
             conn.execute("ALTER TABLE decisions.records DISABLE ROW LEVEL SECURITY")
 
 
